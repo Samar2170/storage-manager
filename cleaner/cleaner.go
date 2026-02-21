@@ -1,10 +1,11 @@
-package main
+package cleaner
 
 import (
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"storage-manager/utils"
 	"strings"
 	"time"
 )
@@ -83,7 +84,7 @@ func findCleanupEntries(folder string) (float64, map[string]float64, error) {
 			if shouldCleanup(d.Name()) {
 				var size int64
 				if d.IsDir() {
-					size, err = GetRecursiveDirSize(fullPath)
+					size, err = utils.GetRecursiveDirSize(fullPath)
 				} else {
 					info, err := d.Info()
 					if err != nil {
@@ -129,6 +130,7 @@ func cleanupFileManager(entries map[string]float64, totalSize float64) {
 			}
 		}
 	}
+
 	fileData := map[string]interface{}{
 		"totalSize": totalSize,
 		"entries":   entries,
@@ -165,7 +167,7 @@ func CheckCleanup(folder string) error {
 	return nil
 }
 
-func cleanup() {
+func Cleanup() {
 	files, err := os.ReadDir(".")
 	if err != nil {
 		return

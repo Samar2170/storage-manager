@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"storage-manager/cleaner"
+	"storage-manager/utils"
 
 	"github.com/akamensky/argparse"
 )
@@ -33,13 +35,13 @@ func main() {
 		}
 		fmt.Print(breakdown)
 	case checkcleanupCmd.Happened():
-		err := CheckCleanup(*cleanupFolder)
+		err := cleaner.CheckCleanup(*cleanupFolder)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
 	case cleanupCmd.Happened():
-		cleanup()
+		cleaner.Cleanup()
 	default:
 		fmt.Println(parser.Usage(nil))
 	}
@@ -70,24 +72,6 @@ func (d DirSizeBreakdown) String() string {
 	return out
 }
 
-func GetRecursiveDirSize(folder string) (int64, error) {
-	var size int64
-	err := filepath.WalkDir(folder, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if !d.IsDir() {
-			info, err := d.Info()
-			if err != nil {
-				return err
-			}
-			size += info.Size()
-		}
-		return nil
-	})
-	return size, err
-}
-
 func GetDirSizeBreakdown(folder string) (DirSizeBreakdown, error) {
 	files, err := os.ReadDir(folder)
 
@@ -108,7 +92,7 @@ func GetDirSizeBreakdown(folder string) (DirSizeBreakdown, error) {
 		fullPath := filepath.Join(folder, file.Name())
 
 		if file.IsDir() {
-			size, err := GetRecursiveDirSize(fullPath)
+			size, err := utils.GetRecursiveDirSize(fullPath)
 			if err != nil {
 				continue
 			}
