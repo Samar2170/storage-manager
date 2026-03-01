@@ -3,9 +3,10 @@ package main
 import (
 	"fmt"
 	"os"
-	"storage-manager/cleaner"
-	"storage-manager/organizer"
-	"storage-manager/utils"
+
+	"github.com/Samar2170/storage-manager/cleaner"
+	"github.com/Samar2170/storage-manager/organizer"
+	"github.com/Samar2170/storage-manager/utils"
 
 	"github.com/akamensky/argparse"
 )

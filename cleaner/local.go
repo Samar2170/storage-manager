@@ -2,7 +2,8 @@ package cleaner
 
 import (
 	"runtime"
-	"storage-manager/utils"
+
+	"github.com/Samar2170/storage-manager/utils"
 )
 
 func readLocalData() (int64, error) {

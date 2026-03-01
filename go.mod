@@ -1,4 +1,4 @@
-module storage-manager
+module github.com/Samar2170/storage-manager
 
 go 1.25.3
 
