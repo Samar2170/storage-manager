@@ -22,6 +22,10 @@ func main() {
 	metadataCmd := parser.NewCommand("metadata", "Read metadata of a file")
 	metadataFile := metadataCmd.String("F", "file", &argparse.Options{Required: true})
 
+	organizeCmd := parser.NewCommand("organize-photos", "Organize photos into folders based on location, camera, and orientation")
+	organizeSource := organizeCmd.String("S", "source", &argparse.Options{Required: true, Help: "Source folder containing photos"})
+	organizeDest := organizeCmd.String("D", "dest", &argparse.Options{Required: true, Help: "Destination folder to copy organized photos"})
+
 	fmt.Println(*folder)
 	err := parser.Parse(os.Args)
 	if err != nil {
@@ -51,6 +55,13 @@ func main() {
 			fmt.Println(err)
 			return
 		}
+	case organizeCmd.Happened():
+		err := organizer.OrganizePhotos(*organizeSource, *organizeDest)
+		if err != nil {
+			fmt.Println("Error organizing photos:", err)
+			return
+		}
+		fmt.Println("Successfully organized photos.")
 	default:
 		fmt.Println(parser.Usage(nil))
 	}
