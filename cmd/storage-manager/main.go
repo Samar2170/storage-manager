@@ -26,6 +26,7 @@ func main() {
 	organizeCmd := parser.NewCommand("organize-photos", "Organize photos into folders based on location, camera, and orientation")
 	organizeSource := organizeCmd.String("S", "source", &argparse.Options{Required: true, Help: "Source folder containing photos"})
 	organizeDest := organizeCmd.String("D", "dest", &argparse.Options{Required: true, Help: "Destination folder to copy organized photos"})
+	organizeLevel := organizeCmd.String("L", "level", &argparse.Options{Required: false, Help: "Level of organization"})
 
 	fmt.Println(*folder)
 	err := parser.Parse(os.Args)
@@ -51,13 +52,15 @@ func main() {
 		cleaner.Cleanup()
 
 	case metadataCmd.Happened():
-		_, err := organizer.ReadMetadata(*metadataFile)
+		_, err := organizer.GetVideoMetadata(*metadataFile)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
 	case organizeCmd.Happened():
-		err := organizer.OrganizePhotos(*organizeSource, *organizeDest)
+		organizeLevel := *organizeLevel
+		filterArgs := parseFilterArgs(organizeLevel)
+		err := organizer.OrganizePhotos(*organizeSource, *organizeDest, filterArgs)
 		if err != nil {
 			fmt.Println("Error organizing photos:", err)
 			return
@@ -66,4 +69,38 @@ func main() {
 	default:
 		fmt.Println(parser.Usage(nil))
 	}
+}
+
+func parseFilterArgs(organizeLevel string) organizer.AnalyzePhotoFilterArgs {
+	if len(organizeLevel) == 0 {
+		return organizer.AnalyzePhotoFilterArgs{
+			Location:    true,
+			Camera:      true,
+			Orientation: true,
+		}
+	}
+	if organizeLevel == "location" {
+		return organizer.AnalyzePhotoFilterArgs{
+			Location: true,
+		}
+	} else if organizeLevel == "camera" {
+		return organizer.AnalyzePhotoFilterArgs{
+			Camera: true,
+		}
+	} else if organizeLevel == "orientation" {
+		return organizer.AnalyzePhotoFilterArgs{
+			Orientation: true,
+		}
+	}
+	var filterArgs organizer.AnalyzePhotoFilterArgs
+	for _, level := range organizeLevel {
+		if level == 'l' {
+			filterArgs.Location = true
+		} else if level == 'c' {
+			filterArgs.Camera = true
+		} else if level == 'o' {
+			filterArgs.Orientation = true
+		}
+	}
+	return filterArgs
 }

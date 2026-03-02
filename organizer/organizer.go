@@ -2,7 +2,6 @@ package organizer
 
 import (
 	"fmt"
-	"image"
 	_ "image/jpeg"
 	_ "image/png"
 	"io"
@@ -13,6 +12,12 @@ import (
 
 	"github.com/rwcarlsen/goexif/exif"
 )
+
+var validExtensions = map[string]struct{}{
+	".jpg":  {},
+	".jpeg": {},
+	".png":  {},
+}
 
 func ReadExif(filePath string) (*exif.Exif, error) {
 	f, err := os.Open(filePath)
@@ -28,7 +33,13 @@ func ReadExif(filePath string) (*exif.Exif, error) {
 	return x, nil
 }
 
-func AnalyzePhoto(filePath string) (location string, camera string, orientation string, err error) {
+type AnalyzePhotoFilterArgs struct {
+	Location    bool
+	Camera      bool
+	Orientation bool
+}
+
+func AnalyzePhoto(filePath string, filterArgs AnalyzePhotoFilterArgs) (location string, camera string, orientation string, err error) {
 	// Default values
 	location = "unknown_location"
 	camera = "downloaded"
@@ -41,39 +52,23 @@ func AnalyzePhoto(filePath string) (location string, camera string, orientation 
 	defer f.Close()
 
 	// 1. Determine Orientation
-	config, format, err := image.DecodeConfig(f)
-	if err == nil && (format == "jpeg" || format == "png") {
-		if config.Height >= config.Width {
-			orientation = "vertical"
-		} else {
-			orientation = "landscape"
-		}
+	imd, err := ReadMetadata(filePath)
+	if err != nil {
+		return location, camera, orientation, err
 	}
-
-	// 2. Determine Camera and Location
-	// Rewind the file to the beginning so goexif can read it
-	f.Seek(0, 0)
-	x, err := exif.Decode(f)
-	if err == nil {
-		// Check for Make or Model tags to classify as "clicked"
-		makeTag, _ := x.Get(exif.Make)
-		modelTag, _ := x.Get(exif.Model)
-
-		if makeTag != nil || modelTag != nil {
-			camera = "clicked"
-		}
-
-		// Check for Location
-		lat, long, err := x.LatLong()
-		if err == nil {
-			location = fmt.Sprintf("%.4f_%.4f", lat, long)
-		}
+	if filterArgs.Location {
+		location = imd.Location
 	}
-
+	if filterArgs.Camera {
+		camera = imd.Camera
+	}
+	if filterArgs.Orientation {
+		orientation = imd.Orientation
+	}
 	return location, camera, orientation, nil
 }
 
-func OrganizePhotos(sourceDir string, destDir string) error {
+func OrganizePhotos(sourceDir string, destDir string, filterArgs AnalyzePhotoFilterArgs) error {
 	return filepath.Walk(sourceDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			log.Printf("Error accessing path %s: %v\n", path, err)
@@ -84,12 +79,12 @@ func OrganizePhotos(sourceDir string, destDir string) error {
 		}
 
 		ext := strings.ToLower(filepath.Ext(path))
-		if ext != ".jpg" && ext != ".jpeg" && ext != ".png" {
+		if _, ok := validExtensions[ext]; !ok {
 			// Skip non-image files
 			return nil
 		}
 
-		location, camera, orientation, err := AnalyzePhoto(path)
+		location, camera, orientation, err := AnalyzePhoto(path, filterArgs)
 		if err != nil {
 			log.Printf("Failed to analyze %s: %v\n", path, err)
 			// Decide to skip or put in an "unknown" directory. Let's still try to organize it.
