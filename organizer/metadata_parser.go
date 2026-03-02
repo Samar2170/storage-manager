@@ -112,6 +112,17 @@ type VideoMetadata struct {
 	Duration      time.Duration
 	CreationTime  time.Time
 	Tags          map[string]any
+	Orientation   string
+	Camera        string
+}
+
+func NewVideoMetadata() VideoMetadata {
+	return VideoMetadata{
+		Orientation: "unknown_orientation",
+		Camera:      "downloaded",
+		Location:    "unknown_location",
+		Tags:        make(map[string]any),
+	}
 }
 
 func GetVideoMetadata(path string) (VideoMetadata, error) {
@@ -130,6 +141,12 @@ func GetVideoMetadata(path string) (VideoMetadata, error) {
 	vmd.Location, _ = data.Format.TagList.GetString("com.apple.quicktime.location.ISO6709")
 	vmd.LivePhotoAuto, _ = data.Format.TagList.GetString("com.apple.quicktime.live-photo.auto")
 	encoder, err := data.Format.TagList.GetString("encoder")
+	make, _ := data.Format.TagList.GetString("com.apple.quicktime.make")
+	if make == "" {
+		vmd.Camera = "downloaded"
+	} else {
+		vmd.Camera = "clicked"
+	}
 	if err == nil {
 		vmd.Encoder = encoder
 	}
@@ -138,6 +155,10 @@ func GetVideoMetadata(path string) (VideoMetadata, error) {
 		vmd.CreationTime, err = time.Parse(time.RFC3339, creationTime)
 	}
 	vmd.Tags = data.Format.TagList
-
+	if vmd.Height >= vmd.Width {
+		vmd.Orientation = "vertical"
+	} else {
+		vmd.Orientation = "landscape"
+	}
 	return vmd, nil
 }

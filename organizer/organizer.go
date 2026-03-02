@@ -13,10 +13,14 @@ import (
 	"github.com/rwcarlsen/goexif/exif"
 )
 
-var validExtensions = map[string]struct{}{
+var validImageExtensions = map[string]struct{}{
 	".jpg":  {},
 	".jpeg": {},
 	".png":  {},
+}
+var validVideoExtensions = map[string]struct{}{
+	".mp4": {},
+	".mov": {},
 }
 
 func ReadExif(filePath string) (*exif.Exif, error) {
@@ -68,6 +72,35 @@ func AnalyzePhoto(filePath string, filterArgs AnalyzePhotoFilterArgs) (location 
 	return location, camera, orientation, nil
 }
 
+func AnalyzeVideo(filePath string, filterArgs AnalyzePhotoFilterArgs) (location string, camera string, orientation string, err error) {
+	// Default values
+	location = "unknown_location"
+	camera = "downloaded"
+	orientation = "unknown_orientation"
+
+	f, err := os.Open(filePath)
+	if err != nil {
+		return location, camera, orientation, err
+	}
+	defer f.Close()
+
+	// 1. Determine Orientation
+	vmd, err := GetVideoMetadata(filePath)
+	if err != nil {
+		return location, camera, orientation, err
+	}
+	if filterArgs.Location {
+		location = vmd.Location
+	}
+	// if filterArgs.Camera {
+	// camera = vmd.
+	// }
+	if filterArgs.Orientation {
+		orientation = vmd.Orientation
+	}
+	return location, camera, orientation, nil
+}
+
 func OrganizePhotos(sourceDir string, destDir string, filterArgs AnalyzePhotoFilterArgs) error {
 	return filepath.Walk(sourceDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -77,10 +110,12 @@ func OrganizePhotos(sourceDir string, destDir string, filterArgs AnalyzePhotoFil
 		if info.IsDir() {
 			return nil
 		}
-
+		validExtensions := validImageExtensions
+		for k, v := range validVideoExtensions {
+			validExtensions[k] = v
+		}
 		ext := strings.ToLower(filepath.Ext(path))
 		if _, ok := validExtensions[ext]; !ok {
-			// Skip non-image files
 			return nil
 		}
 
