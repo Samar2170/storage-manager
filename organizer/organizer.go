@@ -64,7 +64,11 @@ func AnalyzePhoto(filePath string, filterArgs AnalyzePhotoFilterArgs) (location 
 		location = imd.Location
 	}
 	if filterArgs.Camera {
-		camera = imd.Camera
+		if imd.Clicked {
+			camera = "clicked"
+		} else {
+			camera = "downloaded"
+		}
 	}
 	if filterArgs.Orientation {
 		orientation = imd.Orientation
@@ -92,9 +96,13 @@ func AnalyzeVideo(filePath string, filterArgs AnalyzePhotoFilterArgs) (location 
 	if filterArgs.Location {
 		location = vmd.Location
 	}
-	// if filterArgs.Camera {
-	// camera = vmd.
-	// }
+	if filterArgs.Camera {
+		if vmd.Clicked {
+			camera = "clicked"
+		} else {
+			camera = "downloaded"
+		}
+	}
 	if filterArgs.Orientation {
 		orientation = vmd.Orientation
 	}
@@ -110,18 +118,21 @@ func OrganizePhotos(sourceDir string, destDir string, filterArgs AnalyzePhotoFil
 		if info.IsDir() {
 			return nil
 		}
-		validExtensions := validImageExtensions
-		for k, v := range validVideoExtensions {
-			validExtensions[k] = v
-		}
+
 		ext := strings.ToLower(filepath.Ext(path))
-		if _, ok := validExtensions[ext]; !ok {
+		var location, camera, orientation string
+		var analyzeErr error
+
+		if _, ok := validImageExtensions[ext]; ok {
+			location, camera, orientation, analyzeErr = AnalyzePhoto(path, filterArgs)
+		} else if _, ok := validVideoExtensions[ext]; ok {
+			location, camera, orientation, analyzeErr = AnalyzeVideo(path, filterArgs)
+		} else {
 			return nil
 		}
 
-		location, camera, orientation, err := AnalyzePhoto(path, filterArgs)
-		if err != nil {
-			log.Printf("Failed to analyze %s: %v\n", path, err)
+		if analyzeErr != nil {
+			log.Printf("Failed to analyze %s: %v\n", path, analyzeErr)
 			// Decide to skip or put in an "unknown" directory. Let's still try to organize it.
 		}
 
@@ -143,6 +154,10 @@ func OrganizePhotos(sourceDir string, destDir string, filterArgs AnalyzePhotoFil
 		fmt.Printf("Copied %s -> %s\n", path, destFile)
 		return nil
 	})
+}
+
+func OrganizePhotosAndVideos(sourceDir string, destDir string, filterArgs AnalyzePhotoFilterArgs) error {
+	return OrganizePhotos(sourceDir, destDir, filterArgs)
 }
 
 func copyFile(src, dst string) error {

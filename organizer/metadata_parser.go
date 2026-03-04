@@ -13,30 +13,6 @@ import (
 	"gopkg.in/vansante/go-ffprobe.v2"
 )
 
-type ImageMetadata struct {
-	Orientation  string
-	Camera       string
-	Location     string
-	Format       string
-	Tags         map[string]any
-	Latitude     float64
-	Longitude    float64
-	CreationTime time.Time
-}
-
-func NewImageMetadata() ImageMetadata {
-	return ImageMetadata{
-		Orientation:  "unknown_orientation",
-		Camera:       "downloaded",
-		Location:     "unknown_location",
-		Format:       "unknown_format",
-		Tags:         make(map[string]any),
-		Latitude:     0,
-		Longitude:    0,
-		CreationTime: time.Time{},
-	}
-}
-
 func ReadMetadata(filePath string) (ImageMetadata, error) {
 	f, err := os.Open(filePath)
 	var imd ImageMetadata = NewImageMetadata()
@@ -67,7 +43,8 @@ func ReadMetadata(filePath string) (ImageMetadata, error) {
 	modelTag, _ := x.Get(exif.Model)
 
 	if makeTag != nil || modelTag != nil {
-		imd.Camera = "clicked"
+		imd.Clicked = true
+		imd.Camera = makeTag.String()
 	}
 
 	// Check for Location
@@ -103,28 +80,6 @@ func (m *metaWalker) Walk(name exif.FieldName, tag *tiff.Tag) error {
 	return nil
 }
 
-type VideoMetadata struct {
-	Width         int
-	Height        int
-	Location      string
-	LivePhotoAuto string
-	Encoder       string
-	Duration      time.Duration
-	CreationTime  time.Time
-	Tags          map[string]any
-	Orientation   string
-	Camera        string
-}
-
-func NewVideoMetadata() VideoMetadata {
-	return VideoMetadata{
-		Orientation: "unknown_orientation",
-		Camera:      "downloaded",
-		Location:    "unknown_location",
-		Tags:        make(map[string]any),
-	}
-}
-
 func GetVideoMetadata(path string) (VideoMetadata, error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -135,6 +90,7 @@ func GetVideoMetadata(path string) (VideoMetadata, error) {
 	if err != nil {
 		return vmd, err
 	}
+	vmd.Tags = data.Format.TagList
 	vmd.Duration = data.Format.Duration()
 	vmd.Width = data.FirstVideoStream().Width
 	vmd.Height = data.FirstVideoStream().Height
@@ -143,10 +99,9 @@ func GetVideoMetadata(path string) (VideoMetadata, error) {
 	encoder, err := data.Format.TagList.GetString("encoder")
 	make, _ := data.Format.TagList.GetString("com.apple.quicktime.make")
 	if make == "" {
-		vmd.Camera = "downloaded"
-	} else {
-		vmd.Camera = "clicked"
+		vmd.Clicked = false
 	}
+	vmd.Camera = make
 	if err == nil {
 		vmd.Encoder = encoder
 	}
@@ -154,11 +109,12 @@ func GetVideoMetadata(path string) (VideoMetadata, error) {
 	if err == nil {
 		vmd.CreationTime, err = time.Parse(time.RFC3339, creationTime)
 	}
-	vmd.Tags = data.Format.TagList
+
 	if vmd.Height >= vmd.Width {
 		vmd.Orientation = "vertical"
 	} else {
 		vmd.Orientation = "landscape"
 	}
+
 	return vmd, nil
 }

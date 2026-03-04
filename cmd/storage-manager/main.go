@@ -22,6 +22,7 @@ func main() {
 
 	metadataCmd := parser.NewCommand("metadata", "Read metadata of a file")
 	metadataFile := metadataCmd.String("F", "file", &argparse.Options{Required: true})
+	metadataCategory := metadataCmd.Flag("V", "video", &argparse.Options{Required: false, Help: "Read video metadata"})
 
 	organizeCmd := parser.NewCommand("organize-photos", "Organize photos into folders based on location, camera, and orientation")
 	organizeSource := organizeCmd.String("S", "source", &argparse.Options{Required: true, Help: "Source folder containing photos"})
@@ -52,10 +53,20 @@ func main() {
 		cleaner.Cleanup()
 
 	case metadataCmd.Happened():
-		_, err := organizer.GetVideoMetadata(*metadataFile)
-		if err != nil {
-			fmt.Println(err)
-			return
+		if *metadataCategory {
+			vmd, err := organizer.GetVideoMetadata(*metadataFile)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+			fmt.Println(vmd)
+		} else {
+			imd, err := organizer.ReadMetadata(*metadataFile)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+			fmt.Println(imd)
 		}
 	case organizeCmd.Happened():
 		organizeLevel := *organizeLevel
